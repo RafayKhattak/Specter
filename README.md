@@ -12,9 +12,9 @@ Specter is a proof-of-concept pipeline that reverse-engineers web portal workflo
 
 <!-- Replace the placeholder below with your hosted demo link -->
 
-[![Specter Demo](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](YOUR_DEMO_VIDEO_URL_HERE)
+[![Specter Demo](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=google-drive)](https://drive.google.com/file/d/1xCpb6-gMVLl86aBFQImmMe4nxz4sZyV7/view?usp=sharing)
 
-**Demo video:** `[PLACEHOLDER — insert link to Loom / YouTube / Google Drive recording]`
+**Demo video:** [Zatanna PoC Demo (Google Drive)](https://drive.google.com/file/d/1xCpb6-gMVLl86aBFQImmMe4nxz4sZyV7/view?usp=sharing)
 
 Suggested demo flow (2–3 minutes):
 
@@ -115,6 +115,7 @@ Specter/
 ├── generated_api.py     # Compiled stateful HTTP client (GitHub login)
 ├── benchmark.py         # Playwright vs Ghost-Net performance race
 ├── requirements.txt     # Python dependencies
+├── .env.example         # Credential template (copy to .env — gitignored)
 ├── .gitignore
 ├── captures/            # HAR files (gitignored — may contain secrets)
 │   └── github_login.har
@@ -125,7 +126,7 @@ Specter/
 
 ## Requirements
 
-- **Python 3.12+** (tested on Windows; works on macOS/Linux)
+- **Python 3.12+** (3.14 works; use `py` on Windows)
 - **Chromium** (installed via Playwright for capture + benchmark only)
 - Internet access (targets `github.com` in the demo)
 
@@ -138,10 +139,14 @@ Specter/
 cd Specter
 
 # Install Python dependencies
-py -3.12 -m pip install -r requirements.txt
+py -m pip install -r requirements.txt
 
 # Install Chromium for Playwright (capture + benchmark only)
-py -3.12 -m playwright install chromium
+py -m playwright install chromium
+
+# Optional: copy credential template for capture / login scripts
+copy .env.example .env
+# Edit .env with your GitHub username and password
 ```
 
 ---
@@ -152,13 +157,13 @@ Full pipeline in three commands:
 
 ```powershell
 # 1. Capture traffic (opens browser — log in manually, then press Enter)
-py -3.12 capture_har.py --compile
+py capture_har.py --compile
 
 # 2. Run the compiled API client (prompts for credentials)
-py -3.12 generated_api.py
+py generated_api.py
 
 # 3. Benchmark vs Playwright
-py -3.12 benchmark.py
+py benchmark.py
 ```
 
 ---
@@ -174,7 +179,7 @@ Automatically records network traffic to a HAR file. **No manual DevTools export
 Opens a visible browser. You perform the workflow; Specter records everything.
 
 ```powershell
-py -3.12 capture_har.py
+py capture_har.py
 ```
 
 1. Chromium opens at `https://github.com/login`
@@ -185,7 +190,7 @@ py -3.12 capture_har.py
 #### Capture + compile in one step
 
 ```powershell
-py -3.12 capture_har.py --compile
+py capture_har.py --compile
 ```
 
 Runs `har_compiler.py` immediately after capture → writes `generated_api.py`.
@@ -193,7 +198,7 @@ Runs `har_compiler.py` immediately after capture → writes `generated_api.py`.
 #### Automated mode (headless)
 
 ```powershell
-py -3.12 capture_har.py --auto --headless
+py capture_har.py --auto --headless
 ```
 
 Prompts for GitHub credentials (or uses env vars). Runs the login flow automatically without manual browser interaction.
@@ -217,7 +222,7 @@ Prompts for GitHub credentials (or uses env vars). Runs the login flow automatic
 Parses a HAR file and generates a Python HTTP client.
 
 ```powershell
-py -3.12 har_compiler.py
+py har_compiler.py
 ```
 
 Reads `captures/github_login.har` by default, writes `generated_api.py`.
@@ -251,7 +256,7 @@ compile_har(
 Executes the compiled login flow using **pure HTTP** — no browser.
 
 ```powershell
-py -3.12 generated_api.py
+py generated_api.py
 ```
 
 Prompts for username and password (hidden input). Or use environment variables:
@@ -259,7 +264,7 @@ Prompts for username and password (hidden input). Or use environment variables:
 ```powershell
 $env:GITHUB_USERNAME = "your_username"
 $env:GITHUB_PASSWORD = "your_password"
-py -3.12 generated_api.py
+py generated_api.py
 ```
 
 #### Expected output (success)
@@ -298,7 +303,7 @@ print(result.success, result.message)
 Races **Playwright** (headless browser automation) against **Ghost-Net** (the compiled HTTP client).
 
 ```powershell
-py -3.12 benchmark.py
+py benchmark.py
 ```
 
 Runs each approach **3 times**, averages latency (ms) and peak memory (MB), prints a comparison table.
@@ -447,8 +452,8 @@ GitHub login is the same pattern: auth tokens, session cookies, mutation POST �
 - HAR files in `captures/` may contain **plaintext passwords, cookies, and tokens**
 - `captures/` and `*.har` are **gitignored** — do not commit them
 - Never paste credentials into chat logs or issue trackers
-- Use environment variables or interactive `getpass` prompts at runtime
-- `generated_api.py` may contain stale credentials from capture — runtime prompts override them
+- Use environment variables, a local `.env` file (see `.env.example`), or interactive `getpass` prompts at runtime
+- `generated_api.py` stores **placeholder** credentials in `FORM_PAYLOAD`; runtime env/prompt values always override them
 
 ```powershell
 # Clear env vars after use
@@ -465,7 +470,6 @@ Remove-Item Env:GITHUB_PASSWORD -ErrorAction SilentlyContinue
 | **GitHub-specific compiler** | `har_compiler.py` targets `POST` + `/session`; other portals need different URL patterns |
 | **2FA / MFA** | Accounts with two-factor authentication will not complete via this HTTP-only flow |
 | **Account challenges** | GitHub may require CAPTCHA or email verification from new IPs |
-| **Compiler vs runtime** | Re-running `har_compiler.py` overwrites `generated_api.py` with base template; enhanced features (`LoginResult`, credential prompts) may need re-application |
 | **Capture requires browser once** | Playwright used at compile/capture time only; not at runtime |
 | **Portal changes** | If GitHub changes auth flow, re-capture and re-compile |
 
@@ -487,13 +491,13 @@ Remove-Item Env:GITHUB_PASSWORD -ErrorAction SilentlyContinue
 ### `ModuleNotFoundError: curl_cffi`
 
 ```powershell
-py -3.12 -m pip install -r requirements.txt
+py -m pip install -r requirements.txt
 ```
 
 ### `playwright` browser not found
 
 ```powershell
-py -3.12 -m playwright install chromium
+py -m playwright install chromium
 ```
 
 ### `FileNotFoundError: captures/github_login.har`
@@ -501,7 +505,7 @@ py -3.12 -m playwright install chromium
 Run capture first:
 
 ```powershell
-py -3.12 capture_har.py
+py capture_har.py
 ```
 
 ### HTTP 422 on login

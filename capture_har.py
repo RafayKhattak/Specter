@@ -1,9 +1,9 @@
 """Automatically capture a HAR file — no manual DevTools export needed.
 
 Usage:
-    py -3.12 capture_har.py              # opens browser, record your flow, press Enter
-    py -3.12 capture_har.py --compile    # same, then runs har_compiler.py
-    py -3.12 capture_har.py --auto       # fully automated GitHub login capture
+    py capture_har.py              # opens browser, record your flow, press Enter
+    py capture_har.py --compile    # same, then runs har_compiler.py
+    py capture_har.py --auto       # fully automated GitHub login capture
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ DEFAULT_START_URL = "https://github.com/login"
 
 
 async def _github_automated_flow(page: Page, username: str, password: str) -> None:
-    await page.goto(DEFAULT_START_URL, wait_until="networkidle")
+    await page.goto(DEFAULT_START_URL, wait_until="domcontentloaded")
     await page.wait_for_selector("#login_field", state="visible", timeout=30_000)
     await page.fill("#login_field", username)
     await page.evaluate(
@@ -30,7 +30,12 @@ async def _github_automated_flow(page: Page, username: str, password: str) -> No
     )
     await page.fill("#password", password)
     await page.click('input[type="submit"][name="commit"]')
-    await page.wait_for_load_state("networkidle")
+    # GitHub keeps background requests open — networkidle often never fires.
+    await page.wait_for_function(
+        "() => !location.pathname.includes('/login') || document.querySelector('div.flash-error')",
+        timeout=30_000,
+    )
+    await page.wait_for_load_state("domcontentloaded")
 
 
 async def capture_har(

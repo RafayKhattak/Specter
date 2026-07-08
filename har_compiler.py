@@ -12,6 +12,12 @@ OUTPUT_FILENAME = "generated_api.py"
 
 PSEUDO_HEADERS = {":authority", ":method", ":path", ":scheme", ":status"}
 SESSION_MANAGED_HEADERS = {"content-length", "cookie"}
+SENSITIVE_PAYLOAD_FIELDS = frozenset({"login", "password"})
+DYNAMIC_TOKEN_FIELDS = frozenset({"authenticity_token", "timestamp", "timestamp_secret"})
+PLACEHOLDER_CREDENTIALS = {
+    "login": "specter_benchmark_user",
+    "password": "specter_benchmark_pass_12345",
+}
 
 
 def load_har(path: Path) -> dict[str, Any]:
@@ -81,6 +87,17 @@ def extract_payload(request: dict[str, Any]) -> dict[str, str]:
     return payload
 
 
+def sanitize_payload(payload: dict[str, str]) -> dict[str, str]:
+    """Remove captured secrets — credentials come from env/prompts at runtime."""
+    sanitized = dict(payload)
+    for field in SENSITIVE_PAYLOAD_FIELDS:
+        sanitized[field] = PLACEHOLDER_CREDENTIALS[field]
+    for field in DYNAMIC_TOKEN_FIELDS:
+        if field in sanitized:
+            sanitized[field] = ""
+    return sanitized
+
+
 def format_python_dict(data: dict[str, str]) -> str:
     if not data:
         return "{}"
@@ -98,9 +115,18 @@ def generate_api_script(url: str, headers: dict[str, str], payload: dict[str, st
     headers_block = format_python_dict(headers)
     payload_block = format_python_dict(payload)
 
-    return f'''"""Auto-generated stateful API client from HAR capture."""
+    return f'''"""Auto-generated stateful API client from HAR capture.
+
+Credentials in FORM_PAYLOAD are placeholders only. Set GITHUB_USERNAME and
+GITHUB_PASSWORD environment variables, pass arguments to run_login_flow(), or
+use the interactive prompts when running this script directly.
+"""
 
 from __future__ import annotations
+
+import getpass
+import os
+from dataclasses import dataclass
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import Session
@@ -113,6 +139,14 @@ REQUEST_HEADERS: dict[str, str] = {headers_block}
 FORM_PAYLOAD: dict[str, str] = {payload_block}
 
 DYNAMIC_TOKEN_FIELDS = ("authenticity_token", "timestamp", "timestamp_secret")
+
+
+@dataclass(frozen=True)
+class LoginResult:
+    status_code: int
+    success: bool
+    message: str
+    redirect_url: str | None = None
 
 
 def extract_login_tokens(html: str) -> dict[str, str]:
@@ -129,31 +163,87 @@ def extract_login_tokens(html: str) -> dict[str, str]:
     return tokens
 
 
-def run_login_flow() -> int:
+def evaluate_login_response(response) -> LoginResult:
+    status_code = response.status_code
+    redirect_url = response.headers.get("location")
+    html = response.text
+
+    if status_code in (301, 302, 303, 307, 308) and redirect_url:
+        if "/login" not in redirect_url and "/session" not in redirect_url:
+            return LoginResult(status_code, True, "Login succeeded — redirect.", redirect_url)
+
+    soup = BeautifulSoup(html, "html.parser")
+    error_banner = soup.select_one("div.flash-error .js-flash-alert")
+    if error_banner:
+        return LoginResult(status_code, False, error_banner.get_text(strip=True) or "Login failed.")
+
+    user_login = soup.find("meta", attrs={{"name": "user-login"}})
+    username = (user_login.get("content") or "").strip() if user_login else ""
+    if username:
+        return LoginResult(status_code, True, f"Login succeeded — authenticated as {{username}}.")
+
+    if "Sign in to GitHub" in html and 'name="password"' in html:
+        return LoginResult(status_code, False, "Login failed — still on the sign-in page.")
+
+    return LoginResult(status_code, False, "Login outcome unclear.")
+
+
+def resolve_credentials(username: str | None = None, password: str | None = None) -> tuple[str, str]:
+    resolved_username = username or os.environ.get("GITHUB_USERNAME", "").strip()
+    resolved_password = password or os.environ.get("GITHUB_PASSWORD", "")
+
+    if not resolved_username:
+        resolved_username = input("GitHub username or email: ").strip()
+    if not resolved_password:
+        resolved_password = getpass.getpass("GitHub password: ")
+
+    if not resolved_username or not resolved_password:
+        raise ValueError("Username and password are required.")
+
+    return resolved_username, resolved_password
+
+
+def run_login_flow(
+    username: str | None = None,
+    password: str | None = None,
+    *,
+    verbose: bool = True,
+) -> LoginResult:
+    login_username, login_password = resolve_credentials(username, password)
+
     with Session(impersonate="chrome120") as session:
         login_response = session.get(LOGIN_URL)
         login_response.raise_for_status()
 
         fresh_tokens = extract_login_tokens(login_response.text)
 
-        print("Freshly extracted tokens:")
-        for name, value in fresh_tokens.items():
-            print(f"  {{name}}: {{value}}")
+        if verbose:
+            print("Freshly extracted tokens:")
+            for name, value in fresh_tokens.items():
+                print(f"  {{name}}: {{value}}")
 
         payload = FORM_PAYLOAD.copy()
         payload.update(fresh_tokens)
+        payload["login"] = login_username
+        payload["password"] = login_password
 
         post_response = session.post(
             REQUEST_URL,
             headers=REQUEST_HEADERS,
             data=payload,
         )
-        return post_response.status_code
+        result = evaluate_login_response(post_response)
+
+        if verbose:
+            print(f"Response status code: {{result.status_code}}")
+
+        return result
 
 
 def main() -> None:
-    status_code = run_login_flow()
-    print(f"Response status code: {{status_code}}")
+    result = run_login_flow()
+    status = "SUCCESS" if result.success else "FAILED"
+    print(f"Login {{status}}: {{result.message}}")
 
 
 if __name__ == "__main__":
@@ -172,7 +262,7 @@ def compile_har(
 
     url = request["url"]
     headers = extract_headers(request)
-    payload = extract_payload(request)
+    payload = sanitize_payload(extract_payload(request))
 
     generated_source = generate_api_script(url, headers, payload)
     output_path.write_text(generated_source, encoding="utf-8")

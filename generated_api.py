@@ -1,4 +1,9 @@
-"""Auto-generated stateful API client from HAR capture."""
+"""Auto-generated stateful API client from HAR capture.
+
+Credentials in FORM_PAYLOAD are placeholders only. Set GITHUB_USERNAME and
+GITHUB_PASSWORD environment variables, pass arguments to run_login_flow(), or
+use the interactive prompts when running this script directly.
+"""
 
 from __future__ import annotations
 
@@ -15,12 +20,13 @@ REQUEST_URL = 'https://github.com/session'
 REQUEST_HEADERS: dict[str, str] = {
     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     'accept-encoding': 'gzip, deflate, br, zstd',
+    'accept-language': 'en-US,en;q=0.9',
     'cache-control': 'max-age=0',
     'content-type': 'application/x-www-form-urlencoded',
     'origin': 'https://github.com',
     'priority': 'u=0, i',
     'referer': 'https://github.com/login',
-    'sec-ch-ua': '"HeadlessChrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"',
+    'sec-ch-ua': '"Chromium";v="149", "Not)A;Brand";v="24"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
     'sec-fetch-dest': 'document',
@@ -28,12 +34,12 @@ REQUEST_HEADERS: dict[str, str] = {
     'sec-fetch-site': 'same-origin',
     'sec-fetch-user': '?1',
     'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36'
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
 }
 
 FORM_PAYLOAD: dict[str, str] = {
-    'commit': 'Sign in with your identity provider',
-    'authenticity_token': '7yCcOZX3q5WZY805dx9 OWj7il/c4JRQ7X13FM4pjiNNIGl3LOLIw4mA0AnBj2qPz ljHOv8/FhPqr6nYZRlZQ==',
+    'commit': 'Sign in',
+    'authenticity_token': '',
     'add_account': '',
     'login': 'specter_benchmark_user',
     'password': 'specter_benchmark_pass_12345',
@@ -45,9 +51,9 @@ FORM_PAYLOAD: dict[str, str] = {
     'allow_signup': '',
     'client_id': '',
     'integration': '',
-    'required_field_28ef': '',
-    'timestamp': '1783508458253',
-    'timestamp_secret': '0e0afcfab7f638f2d61f695f9daa2f2a989d38d6b195276b485fc35e48dec4f7'
+    'required_field_fd7d': '',
+    'timestamp': '',
+    'timestamp_secret': ''
 }
 
 DYNAMIC_TOKEN_FIELDS = ("authenticity_token", "timestamp", "timestamp_secret")
