@@ -14,14 +14,7 @@ Specter is a proof-of-concept pipeline that reverse-engineers web portal workflo
 
 [![Specter Demo](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=google-drive)](https://drive.google.com/file/d/1xCpb6-gMVLl86aBFQImmMe4nxz4sZyV7/view?usp=sharing)
 
-**Demo video:** [Zatanna PoC Demo (Google Drive)](https://drive.google.com/file/d/1xCpb6-gMVLl86aBFQImmMe4nxz4sZyV7/view?usp=sharing)
-
-Suggested demo flow (2–3 minutes):
-
-1. Explain the problem (browser automation vs network layer)
-2. Run `capture_har.py --compile` (or show existing capture)
-3. Run `generated_api.py` → show successful login via pure HTTP
-4. Run `benchmark.py` → show Ghost-Net vs Playwright speed comparison
+**Demo video:** [Zatanna PoC Demo (Google Drive)](https://drive.google.com/file/d/1xCpb6-gMVLl86aBFQImmMe4nxz4sZyV7/view?usp=sharing) 
 
 ---
 
