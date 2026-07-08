@@ -521,7 +521,7 @@ Benchmark uses ASCII-safe table characters. Use Windows Terminal or PowerShell 7
 
 ## License
 
-MIT (or specify your license here)
+MIT 
 
 ---
 
